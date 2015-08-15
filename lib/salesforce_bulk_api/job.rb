@@ -3,19 +3,19 @@ module SalesforceBulkApi
   class Job
     attr_reader :job_id
 
-    class SalesforceException < StandardError; end
-
-    def initialize(args)
-      @job_id         = args[:job_id]
-      @operation      = args[:operation]
-      @sobject        = args[:sobject]
-      @external_field = args[:external_field]
-      @records        = args[:records]
-      @connection     = args[:connection]
-      @batch_ids      = []
-      @XML_HEADER     = '<?xml version="1.0" encoding="utf-8" ?>'
+    class SalesforceException < StandardError;
     end
 
+    def initialize(args)
+      @job_id = args[:job_id]
+      @operation = args[:operation]
+      @sobject = args[:sobject]
+      @external_field = args[:external_field]
+      @records = args[:records]
+      @connection = args[:connection]
+      @batch_ids = []
+      @XML_HEADER = '<?xml version="1.0" encoding="utf-8" ?>'
+    end
 
 
     def create_job(batch_size, send_nulls, no_null_list)
@@ -29,7 +29,11 @@ module SalesforceBulkApi
       if !@external_field.nil? # This only happens on upsert
         xml += "<externalIdFieldName>#{@external_field}</externalIdFieldName>"
       end
-      xml += "<contentType>CSV</contentType>"
+      if (@operation == 'query')
+        xml += "<contentType>CSV</contentType>"
+      else
+        xml += "<contentType>XML</contentType>"
+      end
       xml += "</jobInfo>"
 
       path = "job"
@@ -69,7 +73,7 @@ module SalesforceBulkApi
 
     def add_batches
       raise 'Records must be an array of hashes.' unless @records.is_a? Array
-      keys = @records.reduce({}) {|h, pairs| pairs.each {|k, v| (h[k] ||= []) << v}; h}.keys
+      keys = @records.reduce({}) { |h, pairs| pairs.each { |k, v| (h[k] ||= []) << v }; h }.keys
 
       @records_dup = @records.clone
 
@@ -207,16 +211,11 @@ module SalesforceBulkApi
       response_parsed = XmlSimple.xml_in(response)
       results = response_parsed['result'] unless @operation == 'query'
 
-      if(@operation == 'query') # The query op requires us to do another request to get the results
+      if (@operation == 'query') # The query op requires us to do another request to get the results
         result_id = response_parsed["result"][0]
         path = "job/#{@job_id}/batch/#{batch_id}/result/#{result_id}"
-        headers = Hash.new
         headers = Hash["Content-Type" => "application/xml; charset=UTF-8"]
         response = @connection.get_request(nil, path, headers)
-
-        # response_parsed = XmlSimple.xml_in(response)
-        # results = response_parsed['records']
-
         results = CSV.parse(response)
       end
       results
