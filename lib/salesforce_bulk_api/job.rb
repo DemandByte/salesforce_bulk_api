@@ -29,7 +29,7 @@ module SalesforceBulkApi
       if !@external_field.nil? # This only happens on upsert
         xml += "<externalIdFieldName>#{@external_field}</externalIdFieldName>"
       end
-      xml += "<contentType>XML</contentType>"
+      xml += "<contentType>CSV</contentType>"
       xml += "</jobInfo>"
 
       path = "job"
@@ -59,7 +59,7 @@ module SalesforceBulkApi
 
     def add_query
       path = "job/#{@job_id}/batch/"
-      headers = Hash["Content-Type" => "application/xml; charset=UTF-8"]
+      headers = Hash["Content-Type" => "text/csv; charset=UTF-8"]
 
       response = @connection.post_xml(nil, path, @records, headers)
       response_parsed = XmlSimple.xml_in(response)
@@ -213,8 +213,11 @@ module SalesforceBulkApi
         headers = Hash.new
         headers = Hash["Content-Type" => "application/xml; charset=UTF-8"]
         response = @connection.get_request(nil, path, headers)
-        response_parsed = XmlSimple.xml_in(response)
-        results = response_parsed['records']
+
+        # response_parsed = XmlSimple.xml_in(response)
+        # results = response_parsed['records']
+
+        results = CSV.parse(response)
       end
       results
     end
